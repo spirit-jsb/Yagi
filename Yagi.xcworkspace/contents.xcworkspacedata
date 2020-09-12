@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:Yagi.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:Demo/Yagi-Demo.xcodeproj">
+   </FileRef>
+</Workspace>
