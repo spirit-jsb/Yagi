@@ -25,7 +25,7 @@ exportSession.outputUrl = URL(fileURLWithPath: NSTemporaryDirectory()).appending
 for H.264 Excellence](http://www.lighterra.com/papers/videoencodingh264/#maximumkeyframeinterval) 文章的内容，具体详情如下:
 
 **VMAssetExportPreset1080p**
-```json
+```swift
 video: {
     AVVideoWidthKey: {video_file}.naturalSize.width,
     AVVideoHeightKey: {video_file}.naturalSize.height,
@@ -53,7 +53,7 @@ audio: {
 ```
 
 **VMAssetExportPreset720p**
-```json
+```swift
 video: {
     AVVideoWidthKey: {video_file}.naturalSize.width,
     AVVideoHeightKey: {video_file}.naturalSize.height,
@@ -81,7 +81,7 @@ audio: {
 ```
 
 **VMAssetExportPreset480p**
-```json
+```swift
 video: {
     AVVideoWidthKey: {video_file}.naturalSize.width,
     AVVideoHeightKey: {video_file}.naturalSize.height,
@@ -109,7 +109,7 @@ audio: {
 ```
 
 **VMAssetExportPreset360p**
-```json
+```swift
 video: {
     AVVideoWidthKey: {video_file}.naturalSize.width,
     AVVideoHeightKey: {video_file}.naturalSize.height,
