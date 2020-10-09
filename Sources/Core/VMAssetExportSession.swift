@@ -565,22 +565,22 @@ extension VMAssetExportSession.Preset {
   var videoBitRate: Float {
     switch self {
     case .VMAssetExportPreset360p:
-      return 896.0 * 1024.0
+      return 896000.0
     case .VMAssetExportPreset480p:
-      return 1216.0 * 1024.0
+      return 1216000.0
     case .VMAssetExportPreset720p:
-      return 2496.0 * 1024.0
+      return 2496000.0
     case .VMAssetExportPreset1080p:
-      return 4992.0 * 1024.0
+      return 4992000.0
     }
   }
   
   var audioBitRate: Float {
     switch self {
     case .VMAssetExportPreset360p, .VMAssetExportPreset480p, .VMAssetExportPreset720p:
-      return 64.0 * 1024.0
+      return 64000.0
     case .VMAssetExportPreset1080p:
-      return 128.0 * 1024.0
+      return 128000.0
     }
   }
 }
