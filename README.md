@@ -1,4 +1,4 @@
-# Yagi
+# Yagi (摩羯)
 
 <p align="center">
   <a href="https://cocoapods.org/pods/Yagi"><img src="https://img.shields.io/cocoapods/v/Yagi.svg?style=for-the-badge"/></a>
