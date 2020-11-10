@@ -163,6 +163,7 @@ public class VMAssetExportSession: NSObject {
         AVVideoAverageBitRateKey: NSNumber(value: preset.videoBitRate),
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
         AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
+        AVVideoMaxKeyFrameIntervalDurationKey: NSNumber(value: 2.0),
         AVVideoAverageNonDroppableFrameRateKey: NSNumber(value: 30.0)
       ]
       if #available(iOS 11.0, *) {
