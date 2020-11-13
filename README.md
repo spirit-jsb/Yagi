@@ -37,9 +37,12 @@ video: {
         AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
     },
     AVVideoCompressionPropertiesKey: {
-        AVVideoAverageBitRateKey: 4992000.0,
+        AVVideoAverageBitRateKey: 7552000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
         AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
+        AVVideoExpectedSourceFrameRateKey: 30.0,
         AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
@@ -65,9 +68,12 @@ video: {
         AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
     },
     AVVideoCompressionPropertiesKey: {
-        AVVideoAverageBitRateKey: 2496000.0,
+        AVVideoAverageBitRateKey: 3072000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
         AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
+        AVVideoExpectedSourceFrameRateKey: 30.0,
         AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
@@ -76,7 +82,7 @@ audio: {
     AVFormatIDKey: kAudioFormatMPEG4AAC,
     AVSampleRateKey: 44100.0,
     AVNumberOfChannelsKey: 2,
-    AVEncoderBitRateKey: 64000.0
+    AVEncoderBitRateKey: 128000.0
 }
 ```
 
@@ -93,9 +99,12 @@ video: {
         AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
     },
     AVVideoCompressionPropertiesKey: {
-        AVVideoAverageBitRateKey: 1216000.0,
+        AVVideoAverageBitRateKey: 1536000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
         AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
+        AVVideoExpectedSourceFrameRateKey: 30.0,
         AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
@@ -122,8 +131,11 @@ video: {
     },
     AVVideoCompressionPropertiesKey: {
         AVVideoAverageBitRateKey: 896000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
         AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
+        AVVideoExpectedSourceFrameRateKey: 30.0,
         AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
