@@ -570,11 +570,11 @@ extension VMAssetExportSession.Preset {
     case .VMAssetExportPreset360p:
       return 896.0 * 1000.0
     case .VMAssetExportPreset480p:
-      return 1536.0 * 1000.0
+      return 1216 * 1000.0
     case .VMAssetExportPreset720p:
-      return 3072.0 * 1000.0
+      return 2496 * 1000.0
     case .VMAssetExportPreset1080p:
-      return 7552.0 * 1000.0
+      return 4992 * 1000.0
     }
   }
   
