@@ -6,11 +6,11 @@
 //  Copyright © 2020 max. All rights reserved.
 //
 
-#if canImport(Foundation) && canImport(AVFoundation) && canImport(MobileCoreServices)
+#if canImport(Foundation) && canImport(AVFoundation) && canImport(CoreServices)
 
 import Foundation
 import AVFoundation
-import MobileCoreServices
+import CoreServices
 
 public class VMAssetExportSession: NSObject {
   
@@ -19,9 +19,11 @@ public class VMAssetExportSession: NSObject {
     case VMAssetExportPreset360p
     case VMAssetExportPreset480p
     case VMAssetExportPreset720p
+    case VMAssetExportPreset720pHQ
     case VMAssetExportPreset1080p
+    case VMAssetExportPreset1080pHQ
   }
-    
+  
   /// VMAssetExportSession 导出会话状态
   public enum Status: Int {
     case unknown = 0
@@ -36,9 +38,9 @@ public class VMAssetExportSession: NSObject {
     case setExportSessionFailure
     case verifyVideoSettingsFailure
     case setWriterFailure
-    case writerFailure(Swift.Error)
+    case writerFailure(Swift.Error?)
     case setReaderFailure
-    case readerFailure(Swift.Error)
+    case readerFailure(Swift.Error?)
     case cancelled
     case unknown
   }
@@ -70,9 +72,9 @@ public class VMAssetExportSession: NSObject {
   public var shouldOptimizeForNetworkUse: Bool = true
   
   /// 指示导出会话状态 (Read Only)
-  public var status: VMAssetExportSession.Status {
+  public var status: VMAssetExportSession.Status? {
     if let _writer = self._writer {
-      return VMAssetExportSession.Status(rawValue: _writer.status.rawValue)!
+      return VMAssetExportSession.Status(rawValue: _writer.status.rawValue)
     }
     return .unknown
   }
@@ -87,7 +89,9 @@ public class VMAssetExportSession: NSObject {
   
   private let _preset: Preset
   private let _timeRange: CMTimeRange
-  private let _inputQueue: DispatchQueue
+  private let _globalQueue: DispatchQueue
+  private let _videoInputQueue: DispatchQueue
+  private let _audioInputQueue: DispatchQueue
   
   private var _writer: AVAssetWriter?
   private var _videoInput: AVAssetWriterInput?
@@ -100,8 +104,6 @@ public class VMAssetExportSession: NSObject {
   private var _bufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
   
   private var _duration: Float64 = 0.0
-  
-  private var _currentSamplePresentationTime: CMTime = .invalid
   
   private var _retryDelay: TimeInterval = 0.5
   
@@ -117,7 +119,9 @@ public class VMAssetExportSession: NSObject {
     self._preset = preset
     
     self._timeRange = CMTimeRangeMake(start: .zero, duration: .positiveInfinity)
-    self._inputQueue = DispatchQueue(label: "com.max.jian.Yagi.export.session", autoreleaseFrequency: .workItem, target: .global())
+    self._globalQueue = DispatchQueue(label: "com.max.jian.Yagi.export.session", qos: .userInteractive, attributes: [.concurrent], autoreleaseFrequency: .workItem, target: nil)
+    self._videoInputQueue = DispatchQueue(label: "com.max.jian.Yagi.export.session.video", qos: .default, autoreleaseFrequency: .workItem, target: self._globalQueue)
+    self._audioInputQueue = DispatchQueue(label: "com.max.jian.Yagi.export.session.audio", qos: .default, autoreleaseFrequency: .workItem, target: self._globalQueue)
     
     if let pathExtension = (asset as? AVURLAsset)?.url.pathExtension {
       if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as CFString, nil)?.takeRetainedValue() {
@@ -127,18 +131,18 @@ public class VMAssetExportSession: NSObject {
     
     // 生成 video size
     func generateVideoNaturalSize() -> CGSize? {
-      let videoTracks = asset.tracks(withMediaType: .video)
-      guard let videoTrack = videoTracks.first else {
+      guard let videoTrack = asset.tracks(withMediaType: .video).first else {
         return nil
       }
       
-      let size = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
-      var videoNaturalSize: CGSize! = CGSize(width: abs(size.width), height: abs(size.height))
+      var videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
+      videoNaturalSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
       
-      if videoNaturalSize.width == 0.0 || videoNaturalSize.height == 0.0 {
-        videoNaturalSize = nil
+      guard videoNaturalSize != .zero else {
+        return nil
       }
-      else if videoNaturalSize.width * videoNaturalSize.height > preset.width * preset.height {
+      
+      if videoNaturalSize.width * videoNaturalSize.height > preset.width * preset.height {
         let aspectRatio = videoNaturalSize.width / videoNaturalSize.height
         let width: CGFloat = abs(aspectRatio > 1.0 ? preset.width : preset.height)
         let height: CGFloat = abs(width / aspectRatio)
@@ -154,16 +158,11 @@ public class VMAssetExportSession: NSObject {
       self.videoSettings[AVVideoWidthKey] = NSNumber(value: Double(videoNaturalSize.width))
       self.videoSettings[AVVideoHeightKey] = NSNumber(value: Double(videoNaturalSize.height))
       self.videoSettings[AVVideoScalingModeKey] = AVVideoScalingModeResizeAspectFill
-      self.videoSettings[AVVideoColorPropertiesKey] = [
-        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
-        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
-        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
-      ]
       self.videoSettings[AVVideoCompressionPropertiesKey] = [
         AVVideoAverageBitRateKey: NSNumber(value: preset.videoBitRate),
-        AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
-        AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
-        AVVideoAverageNonDroppableFrameRateKey: NSNumber(value: 30.0)
+        AVVideoMaxKeyFrameIntervalDurationKey: NSNumber(value: 2.0),
+        AVVideoAllowFrameReorderingKey: NSNumber(value: false),
+        AVVideoProfileLevelKey: AVVideoProfileLevelH264High41
       ]
       if #available(iOS 11.0, *) {
         self.videoSettings[AVVideoCodecKey] = AVVideoCodecType.h264
@@ -187,12 +186,18 @@ public class VMAssetExportSession: NSObject {
     self._reader = nil
     self._videoOutput = nil
     self._audioOutput = nil
-    
-    self._bufferAdaptor = nil
   }
 }
 
 extension VMAssetExportSession {
+  
+  public func updateVideoSetting(_ videoSettings: [String: Any]) {
+    self.videoSettings.merge(videoSettings, uniquingKeysWith: { $1 })
+  }
+  
+  public func updateAudioSetting(_ audioSettings: [String: Any]) {
+    self.audioSettings.merge(audioSettings, uniquingKeysWith: { $1 })
+  }
   
   /// 异步开始导出会话
   public func exportAsynchronously(progress: ProgressHandler? = nil, completion: CompletionHandler? = nil) {
@@ -213,7 +218,7 @@ extension VMAssetExportSession {
     // 初始化 AVAssetWriter
     do {
       self._writer = try AVAssetWriter(outputURL: outputUrl, fileType: outputFileType)
-      self._writer!.shouldOptimizeForNetworkUse = self.shouldOptimizeForNetworkUse
+      self._writer?.shouldOptimizeForNetworkUse = self.shouldOptimizeForNetworkUse
     }
     catch {
       DispatchQueue.main.async {
@@ -252,7 +257,7 @@ extension VMAssetExportSession {
     
     let videoTracks = self.asset.tracks(withMediaType: .video)
     if let videoInput = self._videoInput, let videoOutput = self._videoOutput, videoTracks.count > 0 {
-      videoInput.requestMediaDataWhenReady(on: self._inputQueue) {
+      videoInput.requestMediaDataWhenReady(on: self._videoInputQueue) {
         if !self.encodeSamples(readerOutput: videoOutput, writerInput: videoInput) {
           videoSemaphore.signal()
         }
@@ -263,7 +268,7 @@ extension VMAssetExportSession {
     }
     
     if let audioInput = self._audioInput, let audioOutput = self._audioOutput {
-      audioInput.requestMediaDataWhenReady(on: self._inputQueue) {
+      audioInput.requestMediaDataWhenReady(on: self._audioInputQueue) {
         if !self.encodeSamples(readerOutput: audioOutput, writerInput: audioInput) {
           audioSemaphore.signal()
         }
@@ -273,7 +278,7 @@ extension VMAssetExportSession {
       audioSemaphore.signal()
     }
     
-    DispatchQueue.global().async {
+    self._globalQueue.async {
       videoSemaphore.wait()
       audioSemaphore.wait()
       
@@ -295,8 +300,8 @@ extension VMAssetExportSession {
     
     // video output
     self._videoOutput = AVAssetReaderVideoCompositionOutput(videoTracks: videoTracks, videoSettings: nil)
-    self._videoOutput?.alwaysCopiesSampleData = false
-    self._videoOutput?.videoComposition = self.generateVideoComposition(asset: asset)
+    self._videoOutput!.alwaysCopiesSampleData = false
+    self._videoOutput!.videoComposition = self.generateVideoComposition(asset: asset)
     
     if reader.canAdd(self._videoOutput!) {
       reader.add(self._videoOutput!)
@@ -304,19 +309,21 @@ extension VMAssetExportSession {
     
     // video input
     self._videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
-    self._videoInput?.expectsMediaDataInRealTime = false
+    self._videoInput!.expectsMediaDataInRealTime = false
     
     if writer.canAdd(self._videoInput!) {
       writer.add(self._videoInput!)
     }
     
     // pixel buffer adaptor
-    let pixelBufferAttributes = [
+    let pixelBufferAttributes: [String : Any] = [
       String(kCVPixelBufferPixelFormatTypeKey): NSNumber(value: Int(kCVPixelFormatType_32RGBA)),
-      String(kCVPixelBufferWidthKey): NSNumber(value: Float(self._videoOutput!.videoComposition!.renderSize.width)),
-      String(kCVPixelBufferHeightKey): NSNumber(value: Float(self._videoOutput!.videoComposition!.renderSize.height)),
-      "IOSurfaceOpenGLESTextureCompatibility": NSNumber(value: true),
-      "IOSurfaceOpenGLESFBOCompatibility": NSNumber(value: true)
+      String(kCVPixelBufferWidthKey): videoSettings[AVVideoWidthKey] as! NSNumber,
+      String(kCVPixelBufferHeightKey): videoSettings[AVVideoHeightKey] as! NSNumber,
+      String(kCVPixelBufferIOSurfacePropertiesKey): [
+        "IOSurfaceOpenGLESTextureCompatibility": NSNumber(value: true),
+        "IOSurfaceOpenGLESFBOCompatibility": NSNumber(value: true)
+      ]
     ]
     
     self._bufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: self._videoInput!, sourcePixelBufferAttributes: pixelBufferAttributes)
@@ -331,7 +338,7 @@ extension VMAssetExportSession {
     
     // audio output
     self._audioOutput = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: nil)
-    self._audioOutput?.alwaysCopiesSampleData = false
+    self._audioOutput!.alwaysCopiesSampleData = false
     
     if reader.canAdd(self._audioOutput!) {
       reader.add(self._audioOutput!)
@@ -339,7 +346,7 @@ extension VMAssetExportSession {
     
     // audio input
     self._audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-    self._audioInput?.expectsMediaDataInRealTime = false
+    self._audioInput!.expectsMediaDataInRealTime = false
     
     if writer.canAdd(self._audioInput!) {
       writer.add(self._audioInput!)
@@ -349,7 +356,7 @@ extension VMAssetExportSession {
 
 extension VMAssetExportSession {
   
-  /// 重置 ExportSession
+  /// VMAssetExportSession reset export session
   private func resetExportSession() {
     self._writer = nil
     self._videoInput = nil
@@ -362,7 +369,7 @@ extension VMAssetExportSession {
     self._bufferAdaptor = nil
   }
   
-  // clean sandbox file
+  /// VMAssetExportSession clean sandbox file
   private func cleanSandboxFile(outputUrl: URL?) {
     if let outputUrl = outputUrl, FileManager.default.fileExists(atPath: outputUrl.path) {
       try? FileManager.default.removeItem(at: outputUrl)
@@ -378,19 +385,22 @@ extension VMAssetExportSession {
       }
       
       var isSuccess: Bool = false
-      if self._videoOutput == readerOutput {
+      if readerOutput.mediaType == .video {
         // determine progress
-        self._currentSamplePresentationTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer) - self._timeRange.start
-        self.progress = self._duration == 0.0 ? 1.0 : Float(CMTimeGetSeconds(self._currentSamplePresentationTime) / self._duration)
-        self._progressCallback?(self.progress)
+        let currentSamplePresentationTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer) - self._timeRange.start
+        let progress = self._duration == 0.0 ? 1.0 : self._duration != 0.0 ? Float(CMTimeGetSeconds(currentSamplePresentationTime) / self._duration) : 0.0
+        self._progressCallback?(progress)
+        
+        self.progress = progress
         
         // prepare progress frames
         if let pixelBufferAdaptor = self._bufferAdaptor, let pixelBufferPool = pixelBufferAdaptor.pixelBufferPool {
           var pixelBufferOut: CVPixelBuffer? = nil
-          
+
           let result = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pixelBufferPool, &pixelBufferOut)
+
           if result == kCVReturnSuccess, let pixelBuffer = pixelBufferOut {
-            isSuccess = pixelBufferAdaptor.append(pixelBuffer, withPresentationTime: self._currentSamplePresentationTime)
+            isSuccess = pixelBufferAdaptor.append(pixelBuffer, withPresentationTime: currentSamplePresentationTime)
           }
         }
       }
@@ -405,25 +415,31 @@ extension VMAssetExportSession {
     return true
   }
   
-  // 生成 VideoComposition
+  /// VMAssetExportSession generate a new instance of AVMutableVideoComposition
   private func generateVideoComposition(asset: AVAsset) -> AVMutableVideoComposition {
     return self.fixVideoTransform(asset: asset)
   }
   
-  // 修复视频转向信息
+  /// VMAssetExportSession fix video transform
   private func fixVideoTransform(asset: AVAsset) -> AVMutableVideoComposition {
     let videoComposition = AVMutableVideoComposition(propertiesOf: asset)
     
-    let videoTracks = asset.tracks(withMediaType: .video)
-    guard let videoTrack = videoTracks.first else {
+    guard let videoTrack = asset.tracks(withMediaType: .video).first else {
       return videoComposition
     }
     
     // 设置 frame duration
-    videoComposition.frameDuration = CMTimeMake(value: 1, timescale: 30)
-        
+    var videoFrameRate: Int32 = Int32(videoTrack.nominalFrameRate)
+    if videoFrameRate == 0 { videoFrameRate = 30 }
+    videoComposition.frameDuration = CMTimeMake(value: 1, timescale: videoFrameRate)
+    
     let videoInstruction = AVMutableVideoCompositionInstruction()
     videoInstruction.timeRange = CMTimeRangeMake(start: .zero, duration: asset.duration)
+    
+    let videoLayerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+    
+    var videoNaturalSize = videoTrack.naturalSize
+    videoNaturalSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
     
     // 获取视频角度
     func videoAngle() -> Int {
@@ -445,46 +461,38 @@ extension VMAssetExportSession {
       
       return angle
     }
-    
-    let videoLayerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+
     let angle = videoAngle()
-    
-    if angle != 0 {
-      var centerTransform: CGAffineTransform
-      var fixedTransform: CGAffineTransform
+    switch angle {
+    case 90:
+      let fixedTransform = CGAffineTransform(translationX: videoNaturalSize.height, y: 0.0).rotated(by: .pi / 2)
+      videoLayerInstruction.setTransform(fixedTransform, at: .zero)
       
-      let size = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
-      let videoSize = CGSize(width: abs(size.width), height: abs(size.height))
+      videoComposition.renderSize = CGSize(width: videoNaturalSize.height, height: videoNaturalSize.width)
+    case 180:
+      let fixedTransform = CGAffineTransform(translationX: videoNaturalSize.width, y: videoNaturalSize.height).rotated(by: .pi)
+      videoLayerInstruction.setTransform(fixedTransform, at: .zero)
       
-      switch angle {
-      case 90:
-        centerTransform = CGAffineTransform(translationX: videoSize.height, y: 0.0)
-        fixedTransform = centerTransform.rotated(by: .pi / 2)
-        videoComposition.renderSize = CGSize(width: videoSize.height, height: videoSize.width)
-        videoLayerInstruction.setTransform(fixedTransform, at: .zero)
-      case 180:
-        centerTransform = CGAffineTransform(translationX: videoSize.width, y: videoSize.height)
-        fixedTransform = centerTransform.rotated(by: .pi)
-        videoComposition.renderSize = CGSize(width: videoSize.width, height: videoSize.height)
-        videoLayerInstruction.setTransform(fixedTransform, at: .zero)
-      case 270:
-        centerTransform = CGAffineTransform(translationX: 0.0, y: videoSize.width)
-        fixedTransform = centerTransform.rotated(by: (.pi / 2.0) * 3.0)
-        videoComposition.renderSize = CGSize(width: videoSize.height, height: videoSize.width)
-        videoLayerInstruction.setTransform(fixedTransform, at: .zero)
-      default:
-        videoComposition.renderSize = CGSize(width: videoSize.width, height: videoSize.height)
-      }
+      videoComposition.renderSize = CGSize(width: videoNaturalSize.width, height: videoNaturalSize.height)
+    case 270:
+      let fixedTransform = CGAffineTransform(translationX: 0.0, y: videoNaturalSize.width).rotated(by: (.pi / 2.0) * 3.0)
+      videoLayerInstruction.setTransform(fixedTransform, at: .zero)
+      
+      videoComposition.renderSize = CGSize(width: videoNaturalSize.height, height: videoNaturalSize.width)
+    default:
+      videoComposition.renderSize = CGSize(width: videoNaturalSize.width, height: videoNaturalSize.height)
     }
-    videoInstruction.layerInstructions = [videoLayerInstruction]
     
+    videoInstruction.layerInstructions = [videoLayerInstruction]
     videoComposition.instructions = [videoInstruction]
     
     return videoComposition
   }
   
-  // 重试导出操作
-  private func retryExport() {    
+  /// VMAssetExportSession export retry method
+  ///
+  /// When VMAssetExportSession encoder is unavailable temporarily, AVAssetWriter would trigger AVError. EncoderTemporarilyUnavailable error, at this time VMAssetExportSession will trigger this method.
+  private func retryExport() {
     self.resetExportSession()
     
     DispatchQueue.main.asyncAfter(deadline: .now() + self._retryDelay) {
@@ -493,7 +501,11 @@ extension VMAssetExportSession {
     }
   }
   
-  // finished
+  /// VMAssetExportSession finished method
+  /// - Parameters:
+  ///   - reader: AVAssetReader provides services for obtaining media data from an asset.
+  ///   - writer: AVAssetWriter provides services for writing media data to a new file.
+  ///   - outputUrl: Indicates the URL of the export session's output.
   private func finished(reader: AVAssetReader, writer: AVAssetWriter, outputUrl: URL) {
     switch (writer.status, reader.status) {
     case (_, .cancelled), (.cancelled, _):
@@ -511,23 +523,30 @@ extension VMAssetExportSession {
     }
   }
   
-  // completed
+  /// VMAssetExportSession completed method
+  /// - Parameters:
+  ///   - reader: AVAssetReader provides services for obtaining media data from an asset.
+  ///   - writer: AVAssetWriter provides services for writing media data to a new file.
+  ///   - outputUrl: Indicates the URL of the export session's output.
   private func completed(reader: AVAssetReader, writer: AVAssetWriter, outputUrl: URL) {
     switch (writer.status, reader.status) {
     case (.cancelled, _), (_, .cancelled):
       self.cleanSandboxFile(outputUrl: outputUrl)
+      
       self._completionCallback?(.failure(.cancelled))
     case (.failed, _):
       self.cleanSandboxFile(outputUrl: outputUrl)
+      
       if (writer.error as? AVError)?.code == .encoderTemporarilyUnavailable {
         self.retryExport()
       }
       else {
-        self._completionCallback?(.failure(writer.error != nil ? .writerFailure(writer.error!) : .unknown))
+        self._completionCallback?(.failure(writer.error != nil ? .writerFailure(writer.error) : .unknown))
       }
     case (_, .failed):
       self.cleanSandboxFile(outputUrl: outputUrl)
-      self._completionCallback?(.failure(reader.error != nil ? .readerFailure(reader.error!) : .unknown))
+      
+      self._completionCallback?(.failure(reader.error != nil ? .readerFailure(reader.error) : .unknown))
     default:
       self._completionCallback?(.success(true))
     }
@@ -542,9 +561,9 @@ extension VMAssetExportSession.Preset {
       return 640.0
     case .VMAssetExportPreset480p:
       return 848.0
-    case .VMAssetExportPreset720p:
+    case .VMAssetExportPreset720p, .VMAssetExportPreset720pHQ:
       return 1280.0
-    case .VMAssetExportPreset1080p:
+    case .VMAssetExportPreset1080p, .VMAssetExportPreset1080pHQ:
       return 1920.0
     }
   }
@@ -555,9 +574,9 @@ extension VMAssetExportSession.Preset {
       return 360.0
     case .VMAssetExportPreset480p:
       return 480.0
-    case .VMAssetExportPreset720p:
+    case .VMAssetExportPreset720p, .VMAssetExportPreset720pHQ:
       return 720.0
-    case .VMAssetExportPreset1080p:
+    case .VMAssetExportPreset1080p, .VMAssetExportPreset1080pHQ:
       return 1080.0
     }
   }
@@ -565,22 +584,26 @@ extension VMAssetExportSession.Preset {
   var videoBitRate: Float {
     switch self {
     case .VMAssetExportPreset360p:
-      return 896000.0
+      return 896.0 * 1000.0
     case .VMAssetExportPreset480p:
-      return 1216000.0
+      return 1216.0 * 1000.0
     case .VMAssetExportPreset720p:
-      return 2496000.0
+      return 2496.0 * 1000.0
+    case .VMAssetExportPreset720pHQ:
+      return 3072.0 * 1000.0
     case .VMAssetExportPreset1080p:
-      return 4992000.0
+      return 4992.0 * 1000.0
+    case .VMAssetExportPreset1080pHQ:
+      return 7552.0 * 1000.0
     }
   }
   
   var audioBitRate: Float {
     switch self {
-    case .VMAssetExportPreset360p, .VMAssetExportPreset480p, .VMAssetExportPreset720p:
-      return 64000.0
-    case .VMAssetExportPreset1080p:
-      return 128000.0
+    case .VMAssetExportPreset360p, .VMAssetExportPreset480p:
+      return 64.0 * 1000.0
+    case .VMAssetExportPreset720p, .VMAssetExportPreset720pHQ, .VMAssetExportPreset1080p, .VMAssetExportPreset1080pHQ:
+      return 128.0 * 1000.0
     }
   }
 }

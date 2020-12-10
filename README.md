@@ -19,10 +19,41 @@ exportSession.outputUrl = URL(fileURLWithPath: NSTemporaryDirectory()).appending
 })
 ```
 
+如果需要自定义的 Video & Audio Settings，请使用如下方法:
+```swift
+func updateVideoSetting(_ videoSettings: [String: Any])
+func updateAudioSetting(_ audioSettings: [String: Any])
+```
+
+**注意:** `Yagi` 并不能保证在自定义导出参数的情况下可以正常导出视频，同时自定义导出参数会覆盖预设参数的值，预设参数参考下面。
+
 ## 预设压缩参数
 
 预设压缩参数参考了 [Video Encoding Settings
 for H.264 Excellence](http://www.lighterra.com/papers/videoencodingh264/#maximumkeyframeinterval) 文章的内容，具体详情如下:
+
+**VMAssetExportPreset1080pHQ**
+```swift
+video: {
+    AVVideoWidthKey: {video_file}.naturalSize.width,
+    AVVideoHeightKey: {video_file}.naturalSize.height,
+    AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
+    AVVideoCodecKey: AVVideoCodecH264
+    AVVideoCompressionPropertiesKey: {
+        AVVideoAverageBitRateKey: 7552000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
+        AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
+    }
+},
+
+audio: {
+    AVFormatIDKey: kAudioFormatMPEG4AAC,
+    AVSampleRateKey: 44100.0,
+    AVNumberOfChannelsKey: 2,
+    AVEncoderBitRateKey: 128000.0
+}
+```
 
 **VMAssetExportPreset1080p**
 ```swift
@@ -31,16 +62,34 @@ video: {
     AVVideoHeightKey: {video_file}.naturalSize.height,
     AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
     AVVideoCodecKey: AVVideoCodecH264
-    AVVideoColorPropertiesKey: {
-        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
-        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
-        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
-    },
     AVVideoCompressionPropertiesKey: {
         AVVideoAverageBitRateKey: 4992000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
-        AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
-        AVVideoAverageNonDroppableFrameRateKey: 30.0
+    }
+},
+
+audio: {
+    AVFormatIDKey: kAudioFormatMPEG4AAC,
+    AVSampleRateKey: 44100.0,
+    AVNumberOfChannelsKey: 2,
+    AVEncoderBitRateKey: 128000.0
+}
+```
+
+**VMAssetExportPreset720pHQ**
+```swift
+video: {
+    AVVideoWidthKey: {video_file}.naturalSize.width,
+    AVVideoHeightKey: {video_file}.naturalSize.height,
+    AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
+    AVVideoCodecKey: AVVideoCodecH264
+    AVVideoCompressionPropertiesKey: {
+        AVVideoAverageBitRateKey: 3072000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
+        AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
     }
 },
 
@@ -59,16 +108,11 @@ video: {
     AVVideoHeightKey: {video_file}.naturalSize.height,
     AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
     AVVideoCodecKey: AVVideoCodecH264
-    AVVideoColorPropertiesKey: {
-        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
-        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
-        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
-    },
     AVVideoCompressionPropertiesKey: {
         AVVideoAverageBitRateKey: 2496000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
-        AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
-        AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
 
@@ -76,7 +120,7 @@ audio: {
     AVFormatIDKey: kAudioFormatMPEG4AAC,
     AVSampleRateKey: 44100.0,
     AVNumberOfChannelsKey: 2,
-    AVEncoderBitRateKey: 64000.0
+    AVEncoderBitRateKey: 128000.0
 }
 ```
 
@@ -87,16 +131,11 @@ video: {
     AVVideoHeightKey: {video_file}.naturalSize.height,
     AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
     AVVideoCodecKey: AVVideoCodecH264
-    AVVideoColorPropertiesKey: {
-        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
-        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
-        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
-    },
     AVVideoCompressionPropertiesKey: {
         AVVideoAverageBitRateKey: 1216000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
-        AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
-        AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
 
@@ -115,16 +154,11 @@ video: {
     AVVideoHeightKey: {video_file}.naturalSize.height,
     AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
     AVVideoCodecKey: AVVideoCodecH264
-    AVVideoColorPropertiesKey: {
-        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
-        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
-        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
-    },
     AVVideoCompressionPropertiesKey: {
         AVVideoAverageBitRateKey: 896000.0,
+        AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
+        AVVideoAllowFrameReorderingKey: false,
         AVVideoProfileLevelKey: AVVideoProfileLevelH264High41,
-        AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
-        AVVideoAverageNonDroppableFrameRateKey: 30.0
     }
 },
 
@@ -138,18 +172,18 @@ audio: {
 
 为了防止因为视频实际尺寸小于压缩参数的目标尺寸导致压缩后出现黑边的情况，`AVVideoWidthKey`和 `AVVideoHeightKey` 参数的具体计算过程如下:
 ```swift
-let videoTracks = asset.tracks(withMediaType: .video)
-guard let videoTrack = videoTracks.first else {
+guard let videoTrack = asset.tracks(withMediaType: .video).first else {
     return nil
 }
 
-let size = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
-var videoNaturalSize: CGSize! = CGSize(width: abs(size.width), height: abs(size.height))
+var videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
+videoNaturalSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
 
-if videoNaturalSize.width == 0.0 || videoNaturalSize.height == 0.0 {
-    videoNaturalSize = nil
+guard videoNaturalSize != .zero else {
+    return nil
 }
-else if videoNaturalSize.width * videoNaturalSize.height > preset.width * preset.height {
+
+if videoNaturalSize.width * videoNaturalSize.height > preset.width * preset.height {
     let aspectRatio = videoNaturalSize.width / videoNaturalSize.height
     let width: CGFloat = abs(aspectRatio > 1.0 ? preset.width : preset.height)
     let height: CGFloat = abs(width / aspectRatio)
@@ -209,7 +243,7 @@ AVAssetExportPreset640x480 | 640*360 | 2.6 | 128.0 | 48.0 | 21.8 |
 
 ### **CocoaPods**
 ``` ruby
-pod 'Yagi', '~> 1.0.0'
+pod 'Yagi', '~> 1.0.1'
 ```
 
 ### **Swift Package Manager**
