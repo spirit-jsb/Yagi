@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
     
     s.name = 'Yagi'
-    s.version = '1.0.0'
+    s.version = '1.0.1'
 
     s.summary = 'Yagi 是一个自定义 AVAssetExportSession 框架。'
     s.description = <<-DESC
@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
 
     s.swift_versions = ['5.0']
 
-    s.frameworks = 'Foundation', 'AVFoundation', 'MobileCoreServices'
+    s.frameworks = 'Foundation', 'AVFoundation', 'CoreServices'
 
     s.source = { :git => 'https://github.com/spirit-jsb/Yagi.git', :tag => s.version }
 
