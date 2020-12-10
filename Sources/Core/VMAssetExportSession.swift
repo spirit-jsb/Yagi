@@ -6,11 +6,11 @@
 //  Copyright © 2020 max. All rights reserved.
 //
 
-#if canImport(Foundation) && canImport(AVFoundation) && canImport(MobileCoreServices)
+#if canImport(Foundation) && canImport(AVFoundation) && canImport(CoreServices)
 
 import Foundation
 import AVFoundation
-import MobileCoreServices
+import CoreServices
 
 public class VMAssetExportSession: NSObject {
   
