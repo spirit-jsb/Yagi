@@ -134,9 +134,9 @@ public class VMAssetExportSession: NSObject {
     }
     
     // 校验 video size
-    let videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
-    guard videoNaturalSize != .zero else {
-      return
+    var videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
+    if videoNaturalSize == .zero {
+      videoNaturalSize = CGSize(width: preset.width, height: preset.height)
     }
     
     var videoActualSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
@@ -149,14 +149,19 @@ public class VMAssetExportSession: NSObject {
     }
     
     // 校验 video bit rate
-    let videoEstimatedBitRate = videoTrack.estimatedDataRate
+    var videoEstimatedBitRate = videoTrack.estimatedDataRate
+    if videoEstimatedBitRate == .zero {
+      videoEstimatedBitRate = preset.videoBitRate
+    }
+    
+    let videoActualBitRate = min(preset.videoBitRate, videoEstimatedBitRate)
         
     // video settings & audio settings
     self.videoSettings[AVVideoWidthKey] = NSNumber(value: Double(videoActualSize.width))
     self.videoSettings[AVVideoHeightKey] = NSNumber(value: Double(videoActualSize.height))
     self.videoSettings[AVVideoScalingModeKey] = AVVideoScalingModeResizeAspectFill
     self.videoSettings[AVVideoCompressionPropertiesKey] = [
-      AVVideoAverageBitRateKey: NSNumber(value: videoEstimatedBitRate != .zero ? min(preset.videoBitRate, videoEstimatedBitRate) : preset.videoBitRate),
+      AVVideoAverageBitRateKey: NSNumber(value: videoActualBitRate),
       AVVideoMaxKeyFrameIntervalDurationKey: NSNumber(value: 2.0),
       AVVideoAllowFrameReorderingKey: NSNumber(value: false),
       AVVideoProfileLevelKey: AVVideoProfileLevelH264High41
