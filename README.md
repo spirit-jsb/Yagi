@@ -172,26 +172,29 @@ audio: {
 
 为了防止因为视频实际尺寸小于压缩参数的目标尺寸导致压缩后出现黑边的情况，`AVVideoWidthKey`和 `AVVideoHeightKey` 参数的具体计算过程如下:
 ```swift
-guard let videoTrack = asset.tracks(withMediaType: .video).first else {
-    return nil
-}
-
 var videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
-videoNaturalSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
-
-guard videoNaturalSize != .zero else {
-    return nil
+if videoNaturalSize == .zero {
+    videoNaturalSize = CGSize(width: preset.width, height: preset.height)
 }
 
-if videoNaturalSize.width * videoNaturalSize.height > preset.width * preset.height {
-    let aspectRatio = videoNaturalSize.width / videoNaturalSize.height
+var videoActualSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
+if videoActualSize.width * videoActualSize.height > preset.width * preset.height {
+    let aspectRatio = videoActualSize.width / videoActualSize.height
     let width: CGFloat = abs(aspectRatio > 1.0 ? preset.width : preset.height)
     let height: CGFloat = abs(width / aspectRatio)
+    
+    videoActualSize = CGSize(width: width, height: height)
+}
+```
 
-    videoNaturalSize = CGSize(width: width, height: height)
+为了防止视频实际码率小于目标码率而导致导出结果增大的情况，增加对视频实际码率的校验，如果实际码率小于目标码率时，使用实际码率作为导出参数。
+```swift
+var videoEstimatedBitRate = videoTrack.estimatedDataRate
+if videoEstimatedBitRate == .zero {
+    videoEstimatedBitRate = preset.videoBitRate
 }
 
-return videoNaturalSize
+let videoActualBitRate = min(preset.videoBitRate, videoEstimatedBitRate)
 ```
 
 ## 压缩效果
@@ -243,7 +246,7 @@ AVAssetExportPreset640x480 | 640*360 | 2.6 | 128.0 | 48.0 | 21.8 |
 
 ### **CocoaPods**
 ``` ruby
-pod 'Yagi', '~> 1.0.1'
+pod 'Yagi', '~> 1.0.2'
 ```
 
 ### **Swift Package Manager**
