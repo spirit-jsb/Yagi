@@ -129,53 +129,49 @@ public class VMAssetExportSession: NSObject {
       }
     }
     
-    // 生成 video size
-    func generateVideoNaturalSize() -> CGSize? {
-      guard let videoTrack = asset.tracks(withMediaType: .video).first else {
-        return nil
-      }
-      
-      var videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
-      videoNaturalSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
-      
-      guard videoNaturalSize != .zero else {
-        return nil
-      }
-      
-      if videoNaturalSize.width * videoNaturalSize.height > preset.width * preset.height {
-        let aspectRatio = videoNaturalSize.width / videoNaturalSize.height
-        let width: CGFloat = abs(aspectRatio > 1.0 ? preset.width : preset.height)
-        let height: CGFloat = abs(width / aspectRatio)
-        
-        videoNaturalSize = CGSize(width: width, height: height)
-      }
-      
-      return videoNaturalSize
+    guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+      return
     }
     
-    // video settings & audio settings
-    if let videoNaturalSize = generateVideoNaturalSize() {
-      self.videoSettings[AVVideoWidthKey] = NSNumber(value: Double(videoNaturalSize.width))
-      self.videoSettings[AVVideoHeightKey] = NSNumber(value: Double(videoNaturalSize.height))
-      self.videoSettings[AVVideoScalingModeKey] = AVVideoScalingModeResizeAspectFill
-      self.videoSettings[AVVideoCompressionPropertiesKey] = [
-        AVVideoAverageBitRateKey: NSNumber(value: preset.videoBitRate),
-        AVVideoMaxKeyFrameIntervalDurationKey: NSNumber(value: 2.0),
-        AVVideoAllowFrameReorderingKey: NSNumber(value: false),
-        AVVideoProfileLevelKey: AVVideoProfileLevelH264High41
-      ]
-      if #available(iOS 11.0, *) {
-        self.videoSettings[AVVideoCodecKey] = AVVideoCodecType.h264
-      }
-      else {
-        self.videoSettings[AVVideoCodecKey] = AVVideoCodecH264
-      }
-      
-      self.audioSettings[AVFormatIDKey] = kAudioFormatMPEG4AAC
-      self.audioSettings[AVSampleRateKey] = NSNumber(value: 44100.0)
-      self.audioSettings[AVNumberOfChannelsKey] = NSNumber(value: 2)
-      self.audioSettings[AVEncoderBitRateKey] = NSNumber(value: preset.audioBitRate)
+    // 校验 video size
+    let videoNaturalSize: CGSize = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
+    guard videoNaturalSize != .zero else {
+      return
     }
+    
+    var videoActualSize = CGSize(width: abs(videoNaturalSize.width), height: abs(videoNaturalSize.height))
+    if videoActualSize.width * videoActualSize.height > preset.width * preset.height {
+      let aspectRatio = videoActualSize.width / videoActualSize.height
+      let width: CGFloat = abs(aspectRatio > 1.0 ? preset.width : preset.height)
+      let height: CGFloat = abs(width / aspectRatio)
+      
+      videoActualSize = CGSize(width: width, height: height)
+    }
+    
+    // 校验 video bit rate
+    let videoEstimatedBitRate = videoTrack.estimatedDataRate
+        
+    // video settings & audio settings
+    self.videoSettings[AVVideoWidthKey] = NSNumber(value: Double(videoActualSize.width))
+    self.videoSettings[AVVideoHeightKey] = NSNumber(value: Double(videoActualSize.height))
+    self.videoSettings[AVVideoScalingModeKey] = AVVideoScalingModeResizeAspectFill
+    self.videoSettings[AVVideoCompressionPropertiesKey] = [
+      AVVideoAverageBitRateKey: NSNumber(value: videoEstimatedBitRate != .zero ? min(preset.videoBitRate, videoEstimatedBitRate) : preset.videoBitRate),
+      AVVideoMaxKeyFrameIntervalDurationKey: NSNumber(value: 2.0),
+      AVVideoAllowFrameReorderingKey: NSNumber(value: false),
+      AVVideoProfileLevelKey: AVVideoProfileLevelH264High41
+    ]
+    if #available(iOS 11.0, *) {
+      self.videoSettings[AVVideoCodecKey] = AVVideoCodecType.h264
+    }
+    else {
+      self.videoSettings[AVVideoCodecKey] = AVVideoCodecH264
+    }
+    
+    self.audioSettings[AVFormatIDKey] = kAudioFormatMPEG4AAC
+    self.audioSettings[AVSampleRateKey] = NSNumber(value: 44100.0)
+    self.audioSettings[AVNumberOfChannelsKey] = NSNumber(value: 2)
+    self.audioSettings[AVEncoderBitRateKey] = NSNumber(value: preset.audioBitRate)
   }
   
   deinit {
@@ -396,9 +392,9 @@ extension VMAssetExportSession {
         // prepare progress frames
         if let pixelBufferAdaptor = self._bufferAdaptor, let pixelBufferPool = pixelBufferAdaptor.pixelBufferPool {
           var pixelBufferOut: CVPixelBuffer? = nil
-
+          
           let result = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pixelBufferPool, &pixelBufferOut)
-
+          
           if result == kCVReturnSuccess, let pixelBuffer = pixelBufferOut {
             isSuccess = pixelBufferAdaptor.append(pixelBuffer, withPresentationTime: currentSamplePresentationTime)
           }
@@ -461,7 +457,7 @@ extension VMAssetExportSession {
       
       return angle
     }
-
+    
     let angle = videoAngle()
     switch angle {
     case 90:
