@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
     
     s.name = 'Yagi'
-    s.version = '1.0.1'
+    s.version = '1.0.2'
 
     s.summary = 'Yagi 是一个自定义 AVAssetExportSession 框架。'
     s.description = <<-DESC
